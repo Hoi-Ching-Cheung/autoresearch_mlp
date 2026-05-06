@@ -55,6 +55,38 @@ Key insight from Phase 3: only architecture scale (deeper/wider) with modality_d
 35. **modality_drop=0.10 + [1024,512,256] + dropout=0.15**: Best arch + tuned dropout.
 36. **hidden dims [2048, 512, 256]**: Wide first layer compressing to standard depth.
 
+## Phase 5 hypotheses (runs 075+, after 74 experiments; best 1.2322; near-miss 1.2314 at alpha=0.5)
+
+Key observations: Mixup α=0.4 + [1024,512,256] + modality_drop=0.10 is the dominant config. Near-miss at α=0.5 (1.2314, delta=+0.0008). All single-knob variations on this config tried. Manifold Mixup hurt. Train-val gap (~0.59 vs 1.23) indicates regularization is still the lever.
+
+37. **Mixup alpha=0.45**: Fine-tune between best (0.4→1.2322) and near-miss (0.5→1.2314).
+38. **Embedding noise std=0.01 + Mixup best config**: Run 043 tried noise standalone (1.2872); never tried with full Mixup config.
+39. **Cosine annealing LR + Mixup best config**: Run 025 tried cosine standalone (1.3109); never combined with Mixup.
+40. **batch_size=128 + Mixup best config**: Smaller batches = more gradient steps, more diverse Mixup pairs per epoch.
+41. **Mixup alpha=0.5 + modality_drop=0.15**: Combine alpha near-miss with modality_drop near-miss (0.15→1.2376).
+42. **LR=2e-4 + Mixup best config**: Between current 1e-4 and tried 5e-4 (1.3074); untried with Mixup.
+43. **Mixup alpha=0.5 + embedding noise std=0.005**: Very light noise added to the near-miss alpha.
+44. **AdamW wd=5e-5 + Mixup best config**: Lighter than wd=1e-4 (1.2477); between Adam and tried wd values.
+45. **Modality dropout p=0.12 + Mixup best config**: Between p=0.10 (best) and p=0.15 (1.2376).
+46. **Mixup alpha=0.4 + [1024,512,256] + warmup 5 + cosine LR**: Add warm-up + cosine decay to best config.
+47. **Mixup alpha=0.5 + batch_size=128**: Combine alpha near-miss with smaller batches.
+48. **Label noise sigma=0.03 + Mixup best config**: Very light label noise on top of Mixup soft targets.
+
+## Phase 6 hypotheses (runs 099+, after 98 experiments; best 1.2322; near-miss 1.2283 at alpha=0.45)
+
+Key observations: 36 consecutive failed experiments since run 062. All Mixup variants (3-way, manifold, label-only, cross-modal, clamped lambda), activation changes, training regime changes, structural changes all regressed. Only alpha=0.45 gives a near-miss (1.2283, delta=0.0039). Model near its ceiling.
+
+49. **Per-sample lambda Mixup**: Sample a different lambda for each sample in the batch (shape [B,1]) instead of one lambda per batch. Creates more diverse virtual samples.
+50. **Drug-only Mixup**: Mix drug embeddings only (protein stays unchanged), with label mixing using drug's lambda. Isolates which modality benefits most from Mixup.
+51. **Residual connections + Mixup best config**: Run 031 tried residuals without Mixup (1.3152). With Mixup, skip connections may prevent gradient degradation.
+52. **Bilinear elementwise product fusion**: Add `drug_proj * prot_proj` (both projected to 512 dims) as extra input feature alongside drug||prot concatenation. Captures cross-modal interactions.
+53. **InstanceNorm instead of BatchNorm in hidden layers**: IN normalizes each sample independently; avoids train/eval discrepancy in BN.
+54. **No LayerNorm on inputs (raw embeddings)**: Remove drug_norm and prot_norm, feed raw embeddings. Tests whether LayerNorm is destroying useful scale information.
+55. **Mixup alpha=0.45 + hidden dims [1024, 512, 512]**: Widen last hidden layer with best alpha.
+56. **Separate modality Mixup lambdas**: Sample independent lam_drug and lam_prot from Beta(alpha,alpha), use same idx permutation but different mixing weights per modality.
+57. **Dropout p=0.3 on last hidden layer only** (other layers keep p=0.2): Target regularization at the final representation.
+58. **Drug-protein interaction dot product feature**: Compute drug_proj (→128) ⊙ prot_proj (→128) dot product scalar and append to MLP input.
+
 ## Hard rules
 - Edit `train.py` only. NEVER touch `prepare.py`. NEVER read the test set.
 - ONE knob per experiment. If you need to change two things to test a hypothesis (e.g., SwiGLU requires changing the hidden block), make that explicit in the description but keep the change minimal.
