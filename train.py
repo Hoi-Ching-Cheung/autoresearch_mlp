@@ -26,6 +26,7 @@ EPOCHS          = 100
 PATIENCE        = 20
 BATCH_SIZE      = 256
 MODALITY_DROP_P = 0.10   # probability of zeroing an entire drug or protein vector
+MIXUP_ALPHA     = 0.4    # Beta(alpha, alpha) distribution for mixup augmentation
 
 # ---------------------------------------------------------------------------
 # Reproducibility
@@ -100,6 +101,12 @@ def train_epoch(model, loader, optimizer, loss_fn, device):
         if MODALITY_DROP_P > 0.0:
             drug_emb = _apply_modality_dropout(drug_emb, MODALITY_DROP_P)
             prot_emb = _apply_modality_dropout(prot_emb, MODALITY_DROP_P)
+        if MIXUP_ALPHA > 0.0:
+            lam = float(np.random.beta(MIXUP_ALPHA, MIXUP_ALPHA))
+            idx = torch.randperm(drug_emb.size(0), device=drug_emb.device)
+            drug_emb = lam * drug_emb + (1 - lam) * drug_emb[idx]
+            prot_emb = lam * prot_emb + (1 - lam) * prot_emb[idx]
+            pkd = lam * pkd + (1 - lam) * pkd[idx]
         optimizer.zero_grad()
         pred = model(drug_emb, prot_emb)
         loss = compute_loss(pred, pkd, loss_fn)
