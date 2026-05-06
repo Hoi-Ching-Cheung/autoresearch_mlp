@@ -20,7 +20,7 @@ from prepare import get_loaders, evaluate, compute_loss
 # ---------------------------------------------------------------------------
 SEED            = 42
 LR              = 1e-4
-HIDDEN_DIMS     = [512, 256]
+HIDDEN_DIMS     = [1024, 512, 256]
 DROPOUT         = 0.2
 EPOCHS          = 100
 PATIENCE        = 20
