@@ -18,13 +18,14 @@ from prepare import get_loaders, evaluate, compute_loss
 # ---------------------------------------------------------------------------
 # Hyperparameters
 # ---------------------------------------------------------------------------
-SEED        = 42
-LR          = 1e-4
-HIDDEN_DIMS = [512, 256]
-DROPOUT     = 0.2
-EPOCHS      = 100
-PATIENCE    = 20
-BATCH_SIZE  = 256
+SEED            = 42
+LR              = 1e-4
+HIDDEN_DIMS     = [512, 256]
+DROPOUT         = 0.2
+EPOCHS          = 100
+PATIENCE        = 20
+BATCH_SIZE      = 256
+MODALITY_DROP_P = 0.05   # probability of zeroing an entire drug or protein vector
 
 # ---------------------------------------------------------------------------
 # Reproducibility
@@ -83,6 +84,12 @@ class MLPPredictor(nn.Module):
 # ---------------------------------------------------------------------------
 # Training loop
 # ---------------------------------------------------------------------------
+def _apply_modality_dropout(emb: torch.Tensor, p: float) -> torch.Tensor:
+    """Zero entire rows of emb independently with probability p (training only)."""
+    mask = (torch.rand(emb.size(0), device=emb.device) > p).float().unsqueeze(1)
+    return emb * mask
+
+
 def train_epoch(model, loader, optimizer, loss_fn, device):
     model.train()
     total_loss = 0.0
@@ -90,6 +97,9 @@ def train_epoch(model, loader, optimizer, loss_fn, device):
         drug_emb = drug_emb.to(device)
         prot_emb = prot_emb.to(device)
         pkd = pkd.to(device)
+        if MODALITY_DROP_P > 0.0:
+            drug_emb = _apply_modality_dropout(drug_emb, MODALITY_DROP_P)
+            prot_emb = _apply_modality_dropout(prot_emb, MODALITY_DROP_P)
         optimizer.zero_grad()
         pred = model(drug_emb, prot_emb)
         loss = compute_loss(pred, pkd, loss_fn)
