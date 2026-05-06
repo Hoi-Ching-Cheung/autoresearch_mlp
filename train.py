@@ -25,7 +25,7 @@ DROPOUT         = 0.2
 EPOCHS          = 100
 PATIENCE        = 20
 BATCH_SIZE      = 256
-MODALITY_DROP_P = 0.05   # probability of zeroing an entire drug or protein vector
+MODALITY_DROP_P = 0.10   # probability of zeroing an entire drug or protein vector
 
 # ---------------------------------------------------------------------------
 # Reproducibility
