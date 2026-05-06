@@ -38,6 +38,23 @@ Key observations: modality dropout p=0.10 is the only reliable win (+0.042 RMSE)
 23. **ELU activation**: Smooth negative saturation, not yet tried.
 24. **modality_drop=0.10 + AdamW wd=2e-4**: Combine best modality regularization with the closest weight-decay candidate.
 
+## Phase 4 hypotheses (runs 051+, after 50 experiments; best 1.2769, near-miss 1.2712)
+
+Key insight from Phase 3: only architecture scale (deeper/wider) with modality_drop=0.10 gets close. No other single knob beats it. Need to explore around run 047's near-miss config (modality_drop=0.10 + [1024,512,256]).
+
+25. **hidden dims [2048, 1024, 512, 256]**: Even wider — does scaling up further help?
+26. **hidden dims [1024, 512, 256, 128]**: Deeper narrowing pyramid with modality_drop=0.10.
+27. **hidden dims [1024, 512]**: Wider two-layer vs current [512,256].
+28. **modality_drop=0.10 + [512,512,256]**: Second-best arch (run 022: 1.2858) with modality dropout.
+29. **modality_drop=0.10 + [1024,512,256] + GELU**: Combine near-miss arch with GELU that was close (run 017: 1.289).
+30. **Drug-only modality dropout p=0.10**: Zero only drug vector; protein always present — check which modality matters more.
+31. **Protein-only modality dropout p=0.10**: Zero only protein vector.
+32. **Input concat LayerNorm**: Add nn.LayerNorm on the (drug||prot) concatenated vector before MLP, keeping modality_drop.
+33. **Mixup augmentation**: Mix two training samples λ*sample_a + (1-λ)*sample_b with λ~Beta(0.4,0.4), same for labels.
+34. **dropout=0.15**: Fine-tune between 0.1 (run 002: 1.3253) and 0.2 (best: 1.2769).
+35. **modality_drop=0.10 + [1024,512,256] + dropout=0.15**: Best arch + tuned dropout.
+36. **hidden dims [2048, 512, 256]**: Wide first layer compressing to standard depth.
+
 ## Hard rules
 - Edit `train.py` only. NEVER touch `prepare.py`. NEVER read the test set.
 - ONE knob per experiment. If you need to change two things to test a hypothesis (e.g., SwiGLU requires changing the hidden block), make that explicit in the description but keep the change minimal.
