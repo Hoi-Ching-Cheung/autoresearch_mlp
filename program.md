@@ -87,6 +87,21 @@ Key observations: 36 consecutive failed experiments since run 062. All Mixup var
 57. **Dropout p=0.3 on last hidden layer only** (other layers keep p=0.2): Target regularization at the final representation.
 58. **Drug-protein interaction dot product feature**: Compute drug_proj (→128) ⊙ prot_proj (→128) dot product scalar and append to MLP input.
 
+## Phase 7 hypotheses (runs 109+, after 108 experiments; best 1.2322; near-miss 1.2283 at alpha=0.45)
+
+Key observations: All 10 Phase 6 ideas failed (structural changes, cross-modal interaction features, InstanceNorm crash). 47 consecutive regressions since run 062. The alpha=0.45 near-miss (1.2283, delta=0.0039) remains the closest result ever. Drug-only Mixup (1.2699) confirms both modalities must be mixed. Residuals, bilinear fusion, dot-product features, separate lambdas all regressed. Model near ceiling; need weight-averaging and fine-grained alpha search.
+
+59. **Mixup alpha=0.46**: Fine-tune between near-miss (0.45→1.2283) and 0.50 (1.2314). Interpolation between two near-misses.
+60. **Mixup alpha=0.44**: Fine-tune between best (0.40→1.2322) and near-miss (0.45→1.2283). Closer to 0.45.
+61. **Protein-only Mixup**: Mix protein embeddings only (drug unchanged), labels mixed with protein's lambda. Complement to drug-only (run 100: 1.2699).
+62. **SWA (Stochastic Weight Averaging)**: After epoch 50, average model weights every 5 epochs using torch.optim.swa_utils. Use SWA model for final eval.
+63. **R-Drop regularization**: Two forward passes per batch with different dropout masks; add KL divergence between two output distributions as auxiliary loss (lambda=1.0).
+64. **FGM adversarial embedding training**: After normal backward, compute gradient of loss w.r.t. input embeddings, add perturbation ε=0.05*||emb||, re-compute loss, add to total loss.
+65. **Protein-only modality dropout p=0.10 + Mixup best config**: Run 031 (protein-only modality drop without Mixup: 1.2858); never tried with Mixup config.
+66. **Modality projection before concat: drug(768→512) + prot(1024→512)**: Project each modality to equal 512-dim before concat, MLP input becomes 1024 instead of 1792.
+67. **Stochastic depth: skip each hidden layer with p=0.1**: Each hidden block independently skipped (identity) during training.
+68. **alpha=0.45 + AdamW wd=1e-4**: Best alpha near-miss combined with slight weight decay (wd=1e-4 alone gave 1.2816, best wd result).
+
 ## Hard rules
 - Edit `train.py` only. NEVER touch `prepare.py`. NEVER read the test set.
 - ONE knob per experiment. If you need to change two things to test a hypothesis (e.g., SwiGLU requires changing the hidden block), make that explicit in the description but keep the change minimal.
