@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python train.py *)",
+      "Bash(python train.py)",
+      "Bash(tee *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git reset --hard *)",
+      "Bash(python3 -c *)"
+    ]
+  }
+}

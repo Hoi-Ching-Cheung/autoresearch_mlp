@@ -1,5 +1,4 @@
 runs/
-results.csv
 __pycache__/
 *.pyc
 checkpoints/

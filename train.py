@@ -117,6 +117,10 @@ def train_epoch(model, loader, optimizer, loss_fn, device):
     return total_loss / len(loader)
 
 
+SWA_START_EPOCH = 50   # start averaging from this epoch
+SWA_FREQ        = 5    # average every N epochs
+
+
 def main():
     device = (
         torch.device("cuda")
@@ -132,12 +136,21 @@ def main():
     optimizer = torch.optim.Adam(model.parameters(), lr=LR)
     loss_fn = nn.MSELoss()
 
+    from torch.optim.swa_utils import AveragedModel, update_bn
+    swa_model = AveragedModel(model)
+
     best_val_rmse = float("inf")
     patience_ctr = 0
     best_state = None
+    swa_n = 0
 
     for epoch in range(1, EPOCHS + 1):
         train_epoch(model, train_loader, optimizer, loss_fn, device)
+
+        if epoch >= SWA_START_EPOCH and (epoch - SWA_START_EPOCH) % SWA_FREQ == 0:
+            swa_model.update_parameters(model)
+            swa_n += 1
+
         val_results = evaluate(model, val_loader, device)
         val_rmse = val_results["RMSE"]
 
@@ -150,12 +163,21 @@ def main():
             if patience_ctr >= PATIENCE:
                 break
 
-    # Load best weights for final eval
-    if best_state is not None:
-        model.load_state_dict(best_state)
-
-    val_results   = evaluate(model, val_loader,   device)
-    train_results = evaluate(model, train_loader, device)
+    # Update BN stats for SWA model if we have averages
+    if swa_n > 0:
+        swa_model.train()
+        with torch.no_grad():
+            for drug_emb, prot_emb, pkd, _ in train_loader:
+                drug_emb = drug_emb.to(device)
+                prot_emb = prot_emb.to(device)
+                swa_model(drug_emb, prot_emb)
+        val_results   = evaluate(swa_model, val_loader,   device)
+        train_results = evaluate(swa_model, train_loader, device)
+    else:
+        if best_state is not None:
+            model.load_state_dict(best_state)
+        val_results   = evaluate(model, val_loader,   device)
+        train_results = evaluate(model, train_loader, device)
 
     print(f"VAL_RMSE={val_results['RMSE']:.4f}")
     print(f"TRAIN_RMSE={train_results['RMSE']:.4f}")
